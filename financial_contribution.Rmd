@@ -1,0 +1,599 @@
+#FINANCIAL CONTRIBUTION TO PRESIDENTIAL CAMPAIGN BY STATE by Venkatesh Prasad
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE)
+```
+
+This report is an exploration of the Financial contributions to presidential campaign by the state Alaska
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(grid)
+library(gridExtra)
+```
+
+```{r}
+#loading the dataset
+fc <- read.csv("P00000001-AK.csv", sep = ",",row.names = NULL)
+colnames(fc) <- c(colnames(fc)[-1],NULL)
+fc[19]<- NULL #Removing the last column filled with NA values 
+dim(fc)
+str(fc)
+summary(fc)
+```
+
+This dataset contains 22,136 observations and 18 variables. The summary of the dataset is depicted above.
+
+
+
+#Univariate plot section
+
+```{r}
+#Removing contribution amount greater than 2700$
+nrow(subset(fc,fc$contb_receipt_amt>2700))
+fc<-filter(fc, contb_receipt_amt <= 2700)
+```
+
+There are 3 contributions above 2700$. They have been removed from the dataset since it is against the Federal Election Campaign Act.
+
+```{r}
+#Removing negative Contribution amount
+nrow(subset(fc,fc$contb_receipt_amt<0))
+fc<-filter(fc, contb_receipt_amt >= 0)
+```
+
+There are 271 negative contributions. They are also removed from the dataset.
+So now the number of contribution is 21,861.
+
+```{r}
+#Removing contribution which does not belong to any of the 6 election type
+levels(fc$election_tp)
+nrow(subset(fc,election_tp!="P2016" & 
+               election_tp!="G2016" & 
+               election_tp!="O2016" &
+               election_tp!="C2016" & 
+               election_tp!="R2016" & 
+               election_tp!="S2016" & 
+               election_tp!="E2016" ))
+fc<-filter(fc, election_tp=="P2016" |
+               election_tp=="G2016" | 
+               election_tp=="O2016" | 
+               election_tp=="C2016" | 
+               election_tp=="R2016" | 
+               election_tp=="S2016" | 
+               election_tp=="E2016")
+```
+
+There are 34 contributions which does not belong to any of the election type. So they are removed from the dataset.
+
+```{r}
+#Histogram of total contributor receipt amount
+ggplot(data=fc, aes(x= contb_receipt_amt))+
+  geom_histogram(binwidth = 30)+
+  scale_x_continuous(limits = c(0,2700),
+                     breaks = seq(0,2700,300),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Histogram of total contributor receipt amount")+
+  labs(x="Contributor receipt amount")
+```
+
+
+```{r}
+#Histogram and box plot of total contributor receipt amount on transformed scale
+grid.arrange( ggplot(aes(x=contb_receipt_amt), 
+                data = fc) +
+                geom_histogram( bins = 30)+scale_x_log10() ,
+              ggplot(aes(x=1, y=contb_receipt_amt), 
+                data = fc) +
+                geom_boxplot( ) +
+                scale_y_log10() , nrow =1)
+  
+```
+
+In the above plots, the x scale is transformed for better visulaization since the first one has long tail(right skewed) and difficult to infer. The histogram shows most of the contribution amount lies in the range 5$ to 900$. The box plot clearly shows the outliers in the contribution receipt amount.
+
+```{r}
+#Histogram of number of contributions for each candidate
+all_cand <- ggplot(data = fc, aes(x = contb_receipt_amt))+
+              geom_histogram()+
+              scale_x_log10(labels = dollar_format(suffix = "$", prefix = ""))+
+              #scale_x_continuous(limits = c(0,2700), breaks=seq(0,2700,300))+
+              scale_y_continuous(limits = c(0,1000))+
+              theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+              facet_wrap(~cand_nm)+
+              ggtitle("Histogram of number of contributions for each candidate")+
+              labs(x="Contributor receipt amount")
+```
+
+```{r}
+#Box plot of number of contributions for each candidate
+box <- ggplot(data = fc, aes(x = cand_nm, y=contb_receipt_amt))+
+        geom_boxplot() +
+        scale_y_continuous(limits = c(0,1000), breaks = seq(0,1000,200))+
+        theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r}
+#
+grid.arrange(all_cand, box, ncol=2)
+```
+
+The Contributor receipt amount has been faceted for each candidate. And Hilary Rodhan Clinton seems to have more number of contribution than the other candidates.
+
+```{r}
+#Frequency polygon of number of contributions based on the election type
+ggplot(data = fc, aes(x = contb_receipt_amt, colour = election_tp))+
+  geom_freqpoly()+
+  scale_x_continuous(limits = c(0,2700),
+                     breaks=seq(0,2700,300),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  scale_y_continuous(limits = c(0,700))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Frequency polygon of number of contributions based on the election type")+
+  labs(x="Contributor receipt amount", colour="Election type")
+  
+```
+
+The above grapgh shows the frequency polygon of Contributor receipt amount based on the Election type. Here 'G2016' represents 2016 General election, 'O2016' represent 2016 Other election and 'P2016' represents 2016 Primary election. 
+
+```{r}
+#Histogram of contributor receipt amount based on the form type
+ggplot(data = fc, aes(x=contb_receipt_amt))+
+  geom_histogram()+
+  scale_x_continuous(limits = c(0,2700),
+                     breaks = seq(0,2700,300),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  scale_y_continuous(limits = c(0,150))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Histogram of contributor receipt amount based on the form type")+
+  labs(x="Contributor receipt amount")+
+  facet_wrap(~form_tp)
+```
+
+The above plot represents the histogram of Contributor receipt amount based on the Form type. Here, 'SA17A' i.e Form 3P Schedule A Line 17A represents Individiual contributions and 'SA18' i.e Form 3P Schedule A Line 18 represents transfers from authorized committees. It can be observed that transfers from authorized committees are slightly larger than the individiual contributions.
+
+```{r}
+#Bar of number of contributions made by contributors
+ggplot(data=fc, aes(x= contbr_nm))+
+  geom_bar(stat = "count")+
+  scale_y_continuous(limits = c(0,90),breaks = seq(0,90,10))+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ggtitle("Bar plot of number of contributions made by contributors")+
+  labs(x="Contributors ")
+```
+
+It can be observed that the contributors have contributed a maximum of around 80 times.
+
+```{r}
+#bar plot of number of contributions made in a city
+ggplot(data=fc, aes(x= contbr_city))+
+  geom_bar(stat = "count")+
+  scale_y_continuous(limits = c(0,8000),breaks = seq(0,8000,500))+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ggtitle("Bar plot of number of contributions made in city")+
+  labs(x="Contributor city ")
+```
+
+In the above plot, it can be observed that the maximum contribution made by a city reached between 7500 and 8000 in count.
+
+```{r}
+#bar plot of number of contributions made based on the contributor's occupation
+ggplot(data=fc, aes(x= contbr_occupation))+
+  geom_bar(stat = "count")+
+  scale_y_continuous(limits = c(0,5000),breaks = seq(0,5000,600))+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ggtitle("Bar plot of number of contributions made in city")+
+  labs(x="Contributor occupation")
+```
+
+Here, we can observe that the contribution made by a particular occupation reaches a maximum count between 4500 and 5000. 
+
+```{r}
+#Bar plot of number of contributions made based on the contributor's employer
+ggplot(data=fc, aes(x= contbr_employer))+
+  geom_bar(stat = "count")+
+  scale_y_continuous(limits = c(0,3000),breaks = seq(0,3000,500))+
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ggtitle("Bar plot of number of contributions made in city")+
+  labs(x="Contributor employer ")
+```
+
+In this plot, the maximum number of contribution by a particular employer reaches a maximum count of around 2750.
+
+#Univariate Analysis
+
+### What is the structure of your dataset?
+
+There are 22,136 observations and 18 features. Among the 18 features Contributor receipt amount, contributor zip and File number are integer numbers, committee id is char string and the remaining features i.e., candidate id, candidate name, contributor name, contributor city, contributor state, contributor employer, contributor occupation, contributor receipt date, receipt description, memo code, memo text, form type, transaction id, election type are factors with various levels.  
+
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main fetures of the dataset are Contributor receipt amount and Candidate name.
+
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+Some of the other features such as contributor city, Contributor receipt date, Form type and Election type will support the most for the investigation.
+
+
+### Did you create any new variables from existing variables in the dataset?
+I added a variable Date to the dataset where I have converted the Contributor receipt date to date format.
+
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+
+I have slightly altered the data set to make it tidy. The tuples which have contribution amount which are negative and greater than 2,700$ have been removed since it is against the act. The tiples which does not have the election type are aslo removed. And Log transformation has been applied to the right skewed contribution receipt amount.
+
+
+
+
+
+#Bivariate Plots Section
+
+```{r}
+#Converting the contributor receipt amount to date format
+fc$date = as.Date(fc$contb_receipt_dt, "%d-%b-%y")
+```
+
+```{r}
+#scatter plot of contributor receipt amount vs date
+ggplot(aes(x=date, y=contb_receipt_amt), data=fc) +
+  geom_point(alpha=1/20, position = position_jitter(h=0))+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_continuous(breaks = seq(0,2700,200),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("scatter plot of contributor receipt amount vs date")+
+  labs(x = "Contributor receipt date", y = "Contributor receipt amount")
+```
+
+The above plot show the scatter plot of Contributor receipt amount and the contributor receipt date. But this plot is very difficult to get any insights. So the scales must be transformed for better visulaization.
+
+```{r}
+##scatter plot of contributor receipt amount vs date after coord transform
+scatter <- ggplot(aes(x=date, y=contb_receipt_amt), data=fc) +
+              geom_point(alpha=1/20, position = position_jitter(h=0))+
+              coord_trans(y='sqrt')+
+              scale_x_date(date_breaks = "3 month", 
+                             labels=date_format("%b-%Y"),
+                             limits = as.Date(c('2015-04-01','2016-10-01')))+
+              scale_y_sqrt(labels = dollar_format(suffix = "$", prefix = ""))+
+              theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+              ggtitle("Histogram of total contributor receipt amount")+
+              labs(x = "Contributor receipt date",
+                   y = "Contributor receipt amount")
+grid.arrange(scatter)
+```
+
+This is the same plot as the previous but square root transformation has been applied to the y scale. This shows the increase in contributions from october 2015 to october 2016.
+
+```{r}
+#New data frame for top 10 cities that contributed more
+top_10_city <- fc %>%
+  filter(contbr_city!='') %>%
+  group_by(contbr_city) %>%
+  summarise(contb_receipt_amt_mean = mean(contb_receipt_amt),
+            contb_receipt_amt_sum = sum(contb_receipt_amt),
+            contb_receipt_amt_median = median(contb_receipt_amt),
+            n=n()) %>%
+  arrange(desc(contb_receipt_amt_sum))%>%
+  top_n(10, contb_receipt_amt_sum)
+head(top_10_city)
+```
+
+```{r}
+#Bar chart to represent the top 10 cities that contributed the more
+city <- ggplot(aes(x=contbr_city, y=contb_receipt_amt_sum), data = top_10_city)+
+          geom_bar(stat='identity')+
+          scale_y_continuous(breaks = seq(0,1000000,80000),
+                             labels = dollar_format(suffix = "$", prefix = ""))+
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+          ggtitle("Bar chart of top 10 cities that contributed the most")+
+          labs(x="Contributor city", y="Total contributed amount")
+grid.arrange(city)
+```
+
+From the above bar chart we can come to a conclusion that, the city Anchorage has contributed the most for the presidential election and the remaining cities have equally contributed on a small scale.
+
+```{r}
+#New data frame for top 10 candidates who got more contribution
+top_10_cand <- fc %>%
+  group_by(cand_nm) %>%
+  summarise(sum = sum(contb_receipt_amt),
+            mean = mean(contb_receipt_amt),
+            median= median(contb_receipt_amt),
+            n=n()) %>%
+  arrange(desc(sum))%>%
+  top_n(10,sum)
+head(top_10_cand)
+```
+
+```{r}
+#Bar chart to represent the top 10 candidates who got more contribution
+cand <- ggplot(aes(x=cand_nm, y=sum), data = top_10_cand)+
+          geom_bar(stat='identity')+
+          scale_y_continuous(limits= c(0,600000),breaks = seq(0,600000,80000), labels = dollar_format(suffix = "$", prefix = ""))+
+          theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+          ggtitle("Bar chart of top 10 candidates who got more contribution")+
+          labs(x="Candidate name", y="Total contributed amount")
+grid.arrange(cand)
+```
+
+From the above bar chat it is clear that Hillary Rodham Cliton has hot the highest contrubution and Bernard Sanders and Donald J Trump has got almost equal contrinution with Bernard Sanders slightly topping Donald J Trump.
+
+```{r}
+#new data frame for top 10 occupation of contributors
+top_10_occ <- fc %>%
+  filter(contbr_occupation!='INFORMATION REQUESTED', 
+         contbr_occupation!= 'INFORMATION REQUESTED PER BEST EFFORTS') %>%
+  group_by(contbr_occupation) %>%
+  summarise(mean=mean(contb_receipt_amt),
+            median= median(contb_receipt_amt),
+            sum=sum(contb_receipt_amt),
+            n=n())%>%
+  arrange(desc(sum)) %>%
+  top_n(10,sum)
+head(top_10_occ)
+          
+```
+
+```{r}
+#Bar char of top 10 occupation of contributors.
+ggplot(aes(x=contbr_occupation, y=sum), data = top_10_occ)+
+  geom_bar(stat='identity')+
+  scale_y_continuous(limits= c(0,450000),
+                     breaks = seq(0,450000,80000),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Bar char of top 10 occupation of contributors")+
+  labs(x="Occupation", y="Total contributed amount")
+```
+
+From the plot, we can say the Retired and Unemployed people has contributed most for the presidential election.
+
+```{r}
+nrow(subset(fc, form_tp == "SA17A"))
+nrow(subset(fc, form_tp == "SA18"))
+```
+There are 19,187 contributions from the individiual person and 2,641 contributions from the authorized committee.
+
+```{r}
+#Box plot of Contributor receipt amount based on the form type
+ggplot(aes(x=form_tp, y=contb_receipt_amt), data=fc)+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0,150),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  ggtitle("Box plot of Contributor receipt amount absed on the form type")+
+  labs(x="Form type", y="Contributor receipt amount")
+```
+
+From the above box plot it is clear that contributions from authorized committe is larger than individiual contribution.
+
+
+
+#Bivariate Analysis
+
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+
+The contribution receipt amount is found to be strongly correlated with the contrubution receipt date. The number of contributions gets increasing from the end of the year 2015 to the year 2016. 
+
+The Contributor receipt amount varied differently with the other factor variables. The top ten observation of some factor variables have been analysed and insights are being developed. 
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+
+Yes. when analyzed, the top ten observations of candidate name, contributor city, contributor occupation and cotributor employers have been found based on the contributor receipt amount. 
+
+### What was the strongest relationship you found?
+
+
+The strongest relationship was found between Contributor receipt amount and the contributor receipt date
+
+
+
+
+
+#Multivariate Plots Section
+
+```{r}
+#Scatter plot of Cntribution receipt amount vs contribution receipt date based on the election type
+ggplot(aes(x=date, y=contb_receipt_amt, colour = election_tp), data=fc)+
+  geom_point(alpha=1/5, position = position_jitter(h=0))+
+  coord_trans(y='sqrt')+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_sqrt(labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Scatter plot that shows the amount contributed based on election type")+
+  labs(x="Contribution receipt date",
+       y= "Contribution receipt amount",
+       colour ="Election type")
+```
+
+This plot clearly differentiate the amount contributed in the primary election and the general election with respect to the date. The orange color represents the general election and the blue one represents the primary election 
+
+```{r}
+#Scatter plot of Cntribution receipt amount vs contribution receipt date based on the election type
+ggplot(aes(x=date, y=contb_receipt_amt, colour = form_tp), data=fc) +
+  geom_point(alpha=1/5, position = position_jitter(h=0))+
+  coord_trans(y='sqrt')+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_sqrt(labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Scatter plot that shows the amount contributed based on Form type")+
+  labs(x="Contribution receipt date",
+       y= "Contribution receipt amount",
+       colour ="Election type")
+```
+
+From the above plot we can infer that individiual contributions are more than transfers from authorized committee. And also, the tranfers from the authorized committee is mostly during the general election.
+
+```{r}
+#Contribution for top 5 candidates over time
+ggplot(subset(fc, cand_nm %in% c("Clinton, Hillary Rodham",
+                                 "Trump, Donald J.",
+                                 "Sanders, Bernard",
+                                 "Cruz, Rafael Edward 'Ted'", 
+                                 "Carson, Benjamin S.")),
+       aes(x=date, y=contb_receipt_amt)) +
+  geom_point(alpha=1/20, position = position_jitter(h=0))+
+  geom_smooth(aes(colour = cand_nm))+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_continuous(limits = c(0,1000),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Contribution for top 5 candidates over time")+
+  labs(x="Contribution receipt date",
+       y="Contribution receipt amount",
+       colour = "Candidate name")
+```
+
+The above plot shows the scatter plot of contribution receipt amount and the contribution receipt date along with the top five contributed candidates over the time.
+
+```{r}
+#box plot of contribution receipt amont vs candidate name over election type
+ggplot(aes(x = cand_nm, 
+           y = contb_receipt_amt  , fill = factor(election_tp)), 
+       data = fc) +
+       geom_boxplot()+
+       scale_y_log10()+
+       theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+The above box plot describes contribution receipt amount for each candidate over the election type. The outliers can be easily visualized in this box plot. 
+
+```{r}
+##Contribution for top 5 cities over time
+ggplot(subset(fc, contbr_city %in% c("ANCHORAGE",
+                                 "FAIRBANKS",
+                                 "JUNEAU",
+                                 "WASILLA", 
+                                 "EAGLE RIVER")),
+       aes(x=date, y=contb_receipt_amt)) +
+  geom_point(alpha=1/20, position = position_jitter(h=0))+
+  geom_smooth(aes(colour = contbr_city))+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_continuous(limits = c(0,300),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Contribution for top 5 cities over time")+
+  labs(x="Contribution receipt date",
+       y="Contribution receipt amount",
+       colour = "Contributor city")
+```
+
+This plot shows the scatter plot of contribution receipt amount and contribution receipt date along with the top five highest contributed city over time.
+
+
+
+#Multivariate Analysis
+
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+
+Many intresting relationship has been analyzed with respect to the contribution receipt date. To elaborate the features Election_tp, form_tp, cand_nm, contbr_city varied differently over time. Thus, the contribution receipt date has given a much more insight than does any other feature. 
+
+### Were there any interesting or surprising interactions between features?
+
+
+One of the intresting interaction shows that Hillary Rodham Clinton who was found to be the highest contributor from the bivariate analysis has received the constant contribution over time. But the smooth curve of Donald J trump narrated a different story. That is, Donald J trump he started contributing money only from the later July 2015 but has many hikes in his contribution over time whereas Hillary Rodham Clinton started contributing money May 2015. 
+
+
+
+
+
+# Final Plots and Summary
+
+
+### Plot One
+
+```{r}
+#Histogram of total contributor receipt amount on transformed scale
+ggplot(data=fc, aes(x= contb_receipt_amt))+
+  geom_histogram()+
+  scale_x_log10(labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Histogram of total contributor receipt amount")+
+  labs(x="Contributor receipt amount")
+  
+```
+
+
+### Description One
+
+The above histogram shows the distribution contribution receipt amount on log 10 scale. It can be observed that most of the contribution lies between 8$ and 900$
+
+
+### Plot Two
+```{r}
+#Displaying the scatter plot and two bar chart together
+grid.arrange(scatter)
+grid.arrange(cand, city, ncol=2)
+```
+
+
+### Description Two
+
+From these plot, it is clear that the contributions were more in the later part of the election and that can be infered from the first scatter plot. From the second bar chart we can infer that Hillary Rodham clinton has the largest contribution and Donald J Trump and Bernard Sanders has almost equal contributions. The Third bar chart shows that the highest contributing city is Anchorage. Its contribution is very high when compared to any other cities in Alaska. 
+
+
+### Plot Three
+
+```{r}
+#Contribution for top 5 candidates over time
+ggplot(subset(fc, cand_nm %in% c("Clinton, Hillary Rodham",
+                                 "Trump, Donald J.",
+                                 "Sanders, Bernard",
+                                 "Cruz, Rafael Edward 'Ted'", 
+                                 "Carson, Benjamin S.")),
+       aes(x=date, y=contb_receipt_amt, colour = election_tp)) +
+  geom_point(alpha=1/20, position = position_jitter(h=0))+
+  geom_smooth(aes(colour = cand_nm))+
+  scale_x_date(date_breaks = "3 month", 
+                 labels=date_format("%b-%Y"),
+                 limits = as.Date(c('2015-04-01','2016-10-01')))+
+  scale_y_continuous(limits = c(0,1000),
+                     labels = dollar_format(suffix = "$", prefix = ""))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Contribution for top 5 candidates over time")+
+  labs(x="Contribution receipt date",
+       y="Contribution receipt amount",
+       colour = "Candidate name and election type")
+```
+
+
+### Description Three
+
+In this plot we can observe a very intresting pattern. In the previous plot it can be found that Hillary Rodham Clinton has contributed the highest amount. But in this plot, we can observe how Clinton's smooth curve is constantly distributed and the variations in Trump's curve. And also we can observe a slight hike in Trump's curve in the general election. 
+
+
+
+
+
+# Reflection
+
+Thus I have made an explaratory data analysis on the financial contribution for the presidential election by the state Alaska. The data set contains 22,187 observations and 18 variables. To fully understand the structure of the data set and to unveil the interesting features I started analysing the individiual variables. The intresting features of the data set being the contribution receipt amount. Consequently, the explorations began to be more interesting when the time (Contribution receipt date) gets involved.
+
+Then I started comparing the other different features of the data set with respect to the contribution amount. It gave much more insights. Then I found the top ten observations of some features and compared those among themselves. After that, when the third variable (Contribution receipt date) comes into the play, the insights were very interesting. I explored everything with respect to the time. Thus, I can understand, though Hillary Clinton contributed the highest amount, Donald J Trump contributed more amount in a lesser period of time. 
+
+The limitations of this exploration being that, I cannot come to a conclusion that who contributed the more as a whole from this dataset because it contains onlt the details of the state Alaska. And, in the future work, I can explore further with the dataset including all the states of the United States and arrive at a conclusion.
